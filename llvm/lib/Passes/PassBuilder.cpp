@@ -213,6 +213,7 @@
 #include "llvm/Transforms/Scalar/StructurizeCFG.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
+#include "llvm/Transforms/TFG/Blocks.h"
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/BreakCriticalEdges.h"
@@ -282,9 +283,11 @@ static cl::opt<bool> EnableO3NonTrivialUnswitching(
     "enable-npm-O3-nontrivial-unswitch", cl::init(true), cl::Hidden,
     cl::ZeroOrMore, cl::desc("Enable non-trivial loop unswitching for -O3"));
 
-static cl::opt<bool> EnableBranchFusion(
-    "enable-brfusion", cl::init(false), cl::Hidden,
-    cl::desc("enable brfusion"));
+static cl::opt<bool> EnableBranchFusion("enable-brfusion", cl::init(false),
+                                        cl::Hidden,
+                                        cl::desc("enable brfusion"));
+static cl::opt<bool> EnableTFG("enable-tfg", cl::init(false), cl::Hidden,
+                               cl::desc("enable tfg"));
 /*
 static cl::opt<bool> EnableCFMelder(
     "enable-cfmelder", cl::init(false), cl::Hidden,
@@ -882,17 +885,17 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(InstCombinePass());
   invokePeepholeEPCallbacks(FPM, Level);
 
-  //It is better to run branch fusion after code hoisting and sinking.
-  //Code hoisting and sinking can unify code from multiple blocks while
-  //current branch fusion techniques can only merge two regions at a time.
+  // It is better to run branch fusion after code hoisting and sinking.
+  // Code hoisting and sinking can unify code from multiple blocks while
+  // current branch fusion techniques can only merge two regions at a time.
   /*
   if (EnableCFMelder) {
     FPM.addPass(CFMelderPass());
   }
   */
-  //if (EnableBranchFusion) {
-  //  FPM.addPass(BranchFusionPass());
-  //}
+  // if (EnableBranchFusion) {
+  //   FPM.addPass(BranchFusionPass());
+  // }
 
   if (EnableCHR && Level == OptimizationLevel::O3 && PGOOpt &&
       (PGOOpt->Action == PGOOptions::IRUse ||
@@ -1223,7 +1226,7 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
     MPM.addPass(SyntheticCountsPropagation());
 
   MPM.addPass(buildInlinerPipeline(Level, Phase));
-  
+
   /*
   if (EnableCFMelder) {
     MPM.addPass(CFMelderCodeSizePass());
@@ -1232,10 +1235,13 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
     MPM.addPass(BranchFusionModulePass());
   }
   */
+  if (EnableTFG) {
+    MPM.addPass(BasicBlocksPass());
+  }
   if (EnableBranchFusion) {
     MPM.addPass(HybridBranchFusionModulePass());
   }
-  
+
   if (EnableMemProfiler && Phase != ThinOrFullLTOPhase::ThinLTOPreLink) {
     MPM.addPass(createModuleToFunctionPassAdaptor(MemProfilerPass()));
     MPM.addPass(ModuleMemProfilerPass());
@@ -1761,8 +1767,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   }
 
   // Now deduce any function attributes based in the current code.
-  MPM.addPass(createModuleToPostOrderCGSCCPassAdaptor(
-              PostOrderFunctionAttrsPass()));
+  MPM.addPass(
+      createModuleToPostOrderCGSCCPassAdaptor(PostOrderFunctionAttrsPass()));
 
   // Do RPO function attribute inference across the module to forward-propagate
   // attributes where applicable.
@@ -2236,7 +2242,8 @@ Expected<SimplifyCFGOptions> parseSimplifyCFGOptions(StringRef Params) {
         return make_error<StringError>(
             formatv("invalid argument to SimplifyCFG pass bonus-threshold "
                     "parameter: '{0}' ",
-                    ParamName).str(),
+                    ParamName)
+                .str(),
             inconvertibleErrorCode());
       Result.bonusInstThreshold(BonusInstThreshold.getSExtValue());
     } else {
