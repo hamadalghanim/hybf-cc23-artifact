@@ -2,6 +2,7 @@
 EXTRA_OPT := -mllvm -enable-brfusion=false
 
 SOA=false
+TFG=false
 BRFUSION=false
 HYFMPA=false
 HYFMNW=false
@@ -35,8 +36,12 @@ CFMELDER=true
 ATLEASTONE=true
 endif
 
+ifeq ($(ENABLE_TFG),true)
+TFG=true
+endif
 
-EXTRA_OPT := -mllvm -enable-tfg=true  -mllvm -enable-brfusion=$(ATLEASTONE) -mllvm -run-brfusion-only=$(BRFUSION) -mllvm -run-cfm-only=$(CFMELDER) -mllvm -brfusion-dot=false -mllvm -brfusion-soa=$(SOA)  -mllvm -func-merging-hyfm-nw=$(HYFMNW)  -mllvm -func-merging-hyfm-pa=$(HYFMPA) -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false
+
+EXTRA_OPT := -mllvm -enable-tfg=$(TFG)  -mllvm -enable-brfusion=$(ATLEASTONE) -mllvm -run-brfusion-only=$(BRFUSION) -mllvm -run-cfm-only=$(CFMELDER) -mllvm -brfusion-dot=false -mllvm -brfusion-soa=$(SOA)  -mllvm -func-merging-hyfm-nw=$(HYFMNW)  -mllvm -func-merging-hyfm-pa=$(HYFMPA) -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false
 
 %.o: %.cpp
 	$(CXX) $(OPT) -c $< -o $@ $(CFLAGS) $(EXTRA_OPT)

@@ -17,3 +17,6 @@
 /build*
 /install*
 /cmake-3.21.4-linux-x86_64
+/benchmarks/mibench/*.txt
+/benchmarks/mibench/*/build/
+/benchmarks/mibench/*/src/*.o
