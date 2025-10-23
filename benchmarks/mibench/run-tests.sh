@@ -3,9 +3,9 @@ cd ${DIR}
 
 BENCHMARKS=$(cat BenchNames)
 
-BUILDS="baseline inline trivial tro"
+BUILDS="baseline tfg-cfmelder-brfusion-pa"
 for BENCH in ${BENCHMARKS}; do
   for VERSION in ${BUILDS}; do
-    bash ${BENCH}/run.sh ${BENCH}/build/main.${VERSION}
+    bash ${BENCH}/run.sh ${BENCH}/build/${VERSION}
   done
 done
