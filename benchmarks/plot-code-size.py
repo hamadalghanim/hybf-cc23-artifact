@@ -31,15 +31,24 @@ with open(filename) as f:
             name = "SOA"
         data[vals[0]][ftype + name] = float(vals[2])
 
-gorder = ["cfmelder", "brfusion-pa", "cfmelder-brfusion-pa", "tfg-cfmelder-brfusion-pa"]
+gorder = [
+    "cfmelder",
+    "tfg-cfmelder",
+    "brfusion-pa",
+    "tfg-brfusion-pa",
+    "cfmelder-brfusion-pa",
+    "tfg-cfmelder-brfusion-pa",
+]
 # gorder = ['soa', 'cfmelder', 'brfusion-pa', 'brfusion-nw', 'cfmelder-brfusion-pa', 'cfmelder-brfusion-nw']
 # colors = ['black',   '#8bb9fa', '#1270f4',   '#fa8072','#ff3e20']
-colors = ["#4F9DA6", "#FFAD5A", "#FF5959", "#1270F4"]
+colors = ["#4F9DA6", "#82C0A8", "#FFAD5A", "#CF74EA", "#FF5959", "#1270F4"]
 
 mapname = {}
 mapname["soa"] = "Single-Block"
 mapname["cfmelder"] = "CFM-CS"
+mapname["tfg-cfmelder"] = "TFG-CFM-CS"
 mapname["brfusion-pa"] = "SEME-Fusion"
+mapname["tfg-brfusion-pa"] = "TFG-SEME-Fusion"
 mapname["cfmelder-brfusion-pa"] = "HyBF"
 mapname["tfg-cfmelder-brfusion-pa"] = "HyBF-TFG"
 

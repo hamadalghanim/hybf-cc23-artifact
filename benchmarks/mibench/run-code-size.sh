@@ -15,13 +15,21 @@ for BENCH in ${BENCHMARKS}; do
   make clean >/dev/null
   /usr/bin/time -f "${BENCH},baseline,%E" sh -c "make BIN=build/baseline 2>../${BENCH}.baseline.txt 1>/dev/null" 2>> ../compilation.csv
   make clean >/dev/null
+  /usr/bin/time -f "${BENCH},tfg,%E" sh -c "make ENABLE_TFG=true BIN=build/tfg 2>../${BENCH}.tfg.txt 1>/dev/null" 2>> ../compilation.csv
+  make clean >/dev/null
   /usr/bin/time -f "${BENCH},soa,%E" sh -c "make ENABLE_BRFUSION=true ENABLE_SOA=true BIN=build/soa 2>../${BENCH}.soa.txt 1>/dev/null" 2>> ../compilation.csv
   make clean >/dev/null
+  /usr/bin/time -f "${BENCH},tfg-soa,%E" sh -c "make ENABLE_TFG=true ENABLE_BRFUSION=true ENABLE_SOA=true BIN=build/tfg-soa 2>../${BENCH}.tfg-soa.txt 1>/dev/null" 2>> ../compilation.csv
+  make clean >/dev/null
   /usr/bin/time -f "${BENCH},brfusion-pa,%E" sh -c "make ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/brfusion-pa 2>../${BENCH}.brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
+  make clean >/dev/null
+  /usr/bin/time -f "${BENCH},tfg-brfusion-pa,%E" sh -c "make ENABLE_TFG=true ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/tfg-brfusion-pa 2>../${BENCH}.tfg-brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
   #make clean >/dev/null
   #/usr/bin/time -f "${BENCH},brfusion-nw,%E" sh -c "make ENABLE_BRFUSION=true USE_HYFMNW=true BIN=build/brfusion-nw 2>../${BENCH}.brfusion-nw.txt 1>/dev/null" 2>> ../compilation.csv
   make clean >/dev/null
   /usr/bin/time -f "${BENCH},cfmelder,%E" sh -c "make ENABLE_CFMELDER=true BIN=build/cfmelder 2>../${BENCH}.cfmelder.txt 1>/dev/null" 2>> ../compilation.csv
+  make clean >/dev/null
+  /usr/bin/time -f "${BENCH},tfg-cfmelder,%E" sh -c "make ENABLE_TFG=true ENABLE_CFMELDER=true BIN=build/tfg-cfmelder 2>../${BENCH}.tfg-cfmelder.txt 1>/dev/null" 2>> ../compilation.csv
   make clean >/dev/null
   /usr/bin/time -f "${BENCH},cfmelder-brfusion-pa,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/cfmelder-brfusion-pa 2>../${BENCH}.cfmelder-brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
   make clean >/dev/null
@@ -31,7 +39,7 @@ for BENCH in ${BENCHMARKS}; do
   cd ..
 
   #for VERSION in baseline soa brfusion-pa brfusion-nw cfmelder cfmelder-brfusion-pa cfmelder-brfusion-nw; do
-  for VERSION in baseline soa brfusion-pa cfmelder cfmelder-brfusion-pa tfg-cfmelder-brfusion-pa; do
+  for VERSION in baseline tfg soa tfg-soa brfusion-pa tfg-brfusion-pa cfmelder tfg-cfmelder cfmelder-brfusion-pa tfg-cfmelder-brfusion-pa; do
     python3 results.py ${BENCH} ${LLVM_SIZE} ${VERSION} >> ./results.csv
   done
 done
