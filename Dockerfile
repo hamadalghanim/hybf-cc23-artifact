@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     gfortran \
     time \
+    gdb \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip to latest version
@@ -37,6 +38,8 @@ RUN python3 -m pip install \
 WORKDIR /app
 # Create volume mount point for external code
 VOLUME ["/app"]
+
+RUN echo "set auto-load safe-path /" > /root/.gdbinit
 
 # # Make scripts executable
 # RUN chmod +x scripts/install-cmake.sh \

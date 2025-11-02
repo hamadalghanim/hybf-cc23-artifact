@@ -32,6 +32,7 @@ static cl::opt<MyHashMode>
 namespace llvm {
 // Define the command line option with enum values
 
+auto const FUNC_TO_DEBUG = "LanguageDefine";
 void printTiles(const std::map<Function *, FunctionInfo *> &info) {
   for (const auto &[F, finfo] : info) {
     if (!finfo || finfo->blocks.empty())
@@ -39,48 +40,51 @@ void printTiles(const std::map<Function *, FunctionInfo *> &info) {
     finfo->print(errs(), F);
   }
 }
-// void writeFunctionDiff(const Function &F, const std::string &original)
-// {
-// 	std::error_code EC;
-// 	// Create output directory if it doesn't exist
-// 	std::filesystem::create_directories("output");
+void writeFunctionDiff(const Function &F, const std::string &original) {
+  // Get current function string
+  // Check if function name is
+  std::string currStr;
+  raw_string_ostream currStream(currStr);
+  F.print(currStream);
+  currStream.flush();
 
-// 	std::string filePath = "output/" + F.getName().str() + ".diff";
-// 	raw_fd_ostream diffFile(filePath, EC);
-// 	if (!EC)
-// 	{
-// 		diffFile << "--- a/" << F.getName() << ".ll (original)\n";
-// 		diffFile << "+++ b/" << F.getName() << ".ll (current)\n";
-// 		diffFile << "@@ -1,1 +1,1 @@\n";
+  // Only write diff if they're different
+  if (original == currStr) {
+    return;
+  }
 
-// 		// Original function with '-' prefix
-// 		for (auto line : llvm::split(original, '\n'))
-// 		{
-// 			diffFile << "- " << line << "\n";
-// 		}
+  std::error_code EC;
+  // Create output directory if it doesn't exist
+  std::filesystem::create_directories("output");
 
-// 		// Current function with '+' prefix
-// 		std::string currStr;
-// 		raw_string_ostream currStream(currStr);
-// 		F.print(currStream);
-// 		currStream.flush();
+  std::string filePath = "output/" + F.getName().str() + ".diff";
+  raw_fd_ostream diffFile(filePath, EC);
+  if (!EC) {
+    diffFile << "--- a/" << F.getName() << ".ll (original)\n";
+    diffFile << "+++ b/" << F.getName() << ".ll (current)\n";
+    diffFile << "@@ -1,1 +1,1 @@\n";
 
-// 		for (auto line : llvm::split(currStr, '\n'))
-// 		{
-// 			diffFile << "+ " << line << "\n";
-// 		}
+    SmallVector<StringRef, 16> originalLines;
+    StringRef(original).split(originalLines, '\n');
+    for (auto line : originalLines) {
+      diffFile << "- " << line << "\n";
+    }
 
-// 		diffFile.close();
-// 		errs() << "VERIFICATION FAILED for function: " << F.getName()
-// 			   << " - diff written to output/" << F.getName() <<
-// ".diff\n";
-// 	}
-// 	else
-// 	{
-// 		errs() << "Error creating diff file: " << EC.message() << "\n";
-// 	}
-// }
+    // Current function with '+' prefix
 
+    SmallVector<StringRef, 16> currLines;
+    StringRef(currStr).split(currLines, '\n');
+    for (auto line : currLines) {
+      diffFile << "+ " << line << "\n";
+    }
+
+    diffFile.close();
+    errs() << "VERIFICATION FAILED for function: " << F.getName()
+           << " - diff written to output/" << F.getName() << ".diff\n";
+  } else {
+    errs() << "Error creating diff file: " << EC.message() << "\n";
+  }
+}
 PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   // TODO: to be removed if debug is not needed
@@ -188,7 +192,7 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   }
 
   auto end2 = std::chrono::high_resolution_clock::now(); // Hashing done
-  printTiles(functionInfo);
+
   /*errs() << "Function Similarity Check: \n";
     int bit_compare = 4; //bits to compare between
     int band_count = (sizeof(size_t) * 8) / bit_compare;
@@ -221,9 +225,15 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   // 		fuse_cnt++;
   // 	fuse_run++;
   // }
+  printTiles(functionInfo);
+
   for (const auto &[F, finfo] : functionInfo) {
-    for (TiledBlock *block : finfo->blocks)
-      reorderBasicBlockByTiles(block);
+    if (strcmp(FUNC_TO_DEBUG, F->getName().str().c_str()) == 0) {
+
+      for (TiledBlock *block : finfo->blocks) {
+        reorderBasicBlockByTiles(block);
+      }
+    }
   }
   auto end3 = std::chrono::high_resolution_clock::now(); // Branch Hoisting done
   /*for (Function &f: M.functions()) {
@@ -277,6 +287,9 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
       errs() << "VERIFICATION FAILED for function: " << F.getName() << "\n";
       // writeFunctionDiff(F, OriginalFunctions[&F]);
       failed = true;
+    }
+    if (strcmp(FUNC_TO_DEBUG, F.getName().str().c_str()) == 0) {
+      writeFunctionDiff(F, OriginalFunctions[&F]);
     }
   }
   if (failed) {
