@@ -58,7 +58,7 @@ EXTRA_OPT := -mllvm -enable-tfg=$(TFG)  -mllvm -enable-brfusion=$(ATLEASTONE) -m
 OBJS = $(addsuffix .o, $(basename $(SRC)))
 
 $(BIN): $(OBJS)
-	$(CXX) $(OBJS) $(OPT) $(EXTRA_OPT) -o $(BIN) $(LDFLAGS) -fno-align-functions -s
+	$(CXX) $(OBJS) $(OPT) $(EXTRA_OPT) -o $(BIN) $(LDFLAGS) -fno-align-functions -g
 	$(LLPATH)/llvm-size -B -d $(BIN)
 
 build: $(BIN)

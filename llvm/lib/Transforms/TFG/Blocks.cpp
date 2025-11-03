@@ -32,7 +32,7 @@ static cl::opt<MyHashMode>
 namespace llvm {
 // Define the command line option with enum values
 
-auto const FUNC_TO_DEBUG = "LanguageDefine";
+auto const FUNC_TO_DEBUG = "Parse";
 void printTiles(const std::map<Function *, FunctionInfo *> &info) {
   for (const auto &[F, finfo] : info) {
     if (!finfo || finfo->blocks.empty())

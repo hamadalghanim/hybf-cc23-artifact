@@ -25,8 +25,3 @@ set_target_properties(LLVMTFG PROPERTIES
   CXX_STANDARD 17
   CXX_STANDARD_REQUIRED ON
 )
-
-# --- Link filesystem if using older libstdc++ (e.g., GCC < 9) ---
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_link_libraries(LLVMTFG PRIVATE stdc++fs)
-endif()
