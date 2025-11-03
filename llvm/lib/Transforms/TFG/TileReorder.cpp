@@ -20,7 +20,7 @@ void reorderBasicBlockByTiles(TiledBlock *block) {
   std::map<Instruction *, int> instToTile;
   std::vector<Instruction *> newOrder;
   std::set<Instruction *> processed;
-  std::vector<Instruction *> controlFlowInsts;
+  std::vector<Instruction *> barrierInsts;
   std::vector<Instruction *> phiNodes;
   for (size_t i = 0; i < block->tiles.size(); i++) {
     for (Instruction *inst : block->tiles[i]->insts) {
@@ -29,8 +29,8 @@ void reorderBasicBlockByTiles(TiledBlock *block) {
   }
 
   for (Instruction &I : *BB) {
-    if (isControlFlowInst(&I)) {
-      controlFlowInsts.push_back(&I);
+    if (isControlFlowInst(&I) || isMemoryBarrier(&I)) {
+      barrierInsts.push_back(&I);
     }
     if (isa<PHINode>(&I)) {
       phiNodes.push_back(&I);
@@ -54,12 +54,12 @@ void reorderBasicBlockByTiles(TiledBlock *block) {
 
   // Process each region (between control flow boundaries)
   int regionStart = 0;
-  for (Instruction *cfInst : controlFlowInsts) {
-    int cfPos = getOriginalPos(cfInst);
+  for (Instruction *barrierInst : barrierInsts) {
+    int barrierPos = getOriginalPos(barrierInst);
 
     // Collect all instructions in this region that belong to tiles
     std::map<int, std::vector<Instruction *>> tilesInRegion;
-    for (int i = regionStart; i < cfPos; i++) {
+    for (int i = regionStart; i < barrierPos; i++) {
       Instruction *inst = originalOrder[i];
       if (instToTile.count(inst) > 0) {
         int tileIdx = instToTile[inst];
@@ -83,14 +83,13 @@ void reorderBasicBlockByTiles(TiledBlock *block) {
       }
     }
 
-    // Add the control flow instruction
-    newOrder.push_back(cfInst);
-    processed.insert(cfInst);
-
-    regionStart = cfPos + 1;
+    // Add the barrier instruction (control flow or memory)
+    newOrder.push_back(barrierInst);
+    processed.insert(barrierInst);
+    regionStart = barrierPos + 1;
   }
 
-  // Handle remaining instructions after last control flow
+  // Handle remaining instructions after last barrier
   std::map<int, std::vector<Instruction *>> remainingTiles;
   for (size_t i = regionStart; i < originalOrder.size(); i++) {
     Instruction *inst = originalOrder[i];
