@@ -69,7 +69,7 @@ TiledBlock *generateTiledBlock(BasicBlock *basedOn) {
 
   std::set<Instruction *> tileBarriers{};
   for (Instruction &I : *basedOn) {
-    if (isControlFlowInst(&I) || isMemoryBarrier(&I)) {
+    if (isControlFlowInst(&I) /* || isMemoryBarrier(&I)*/) {
       tileBarriers.insert(&I);
     }
   }
@@ -79,7 +79,7 @@ TiledBlock *generateTiledBlock(BasicBlock *basedOn) {
     Instruction *inst = &*it;
 
     // Control flow instructions force a new tile for everything before them
-    if (isControlFlowInst(inst) || isMemoryBarrier(inst)) {
+    if (isControlFlowInst(inst) /* || isMemoryBarrier(&I)*/) {
       nxtId++; // Start a new tile ID for instructions before this control flow
       continue;
     }
@@ -93,7 +93,7 @@ TiledBlock *generateTiledBlock(BasicBlock *basedOn) {
       Value *v = U.get();
       if (auto *i = dyn_cast<Instruction>(v)) {
         // Don't propagate tile IDs across control flow boundaries
-        if (isControlFlowInst(i) || isMemoryBarrier(i))
+        if (isControlFlowInst(i) /* || isMemoryBarrier(&I)*/)
           continue;
 
         if (tile_map.count(i) == 0) {
@@ -132,7 +132,7 @@ TiledBlock *generateTiledBlock(BasicBlock *basedOn) {
   std::map<int, int> id_to_indx;
   for (Instruction &I : *basedOn) {
     // Skip control flow instructions when creating tiles
-    if (isControlFlowInst(&I) || isMemoryBarrier(&I))
+    if (isControlFlowInst(&I) /* || isMemoryBarrier(&I)*/)
       continue;
 
     if (tile_map.count(&I) <= 0) {

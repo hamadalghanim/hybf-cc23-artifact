@@ -225,14 +225,13 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   // 		fuse_cnt++;
   // 	fuse_run++;
   // }
-  printTiles(functionInfo);
+
+  // printTiles(functionInfo);
 
   for (const auto &[F, finfo] : functionInfo) {
-    if (strcmp(FUNC_TO_DEBUG, F->getName().str().c_str()) == 0) {
-
-      for (TiledBlock *block : finfo->blocks) {
-        reorderBasicBlockByTiles(block);
-      }
+    AAResults &AA = FAM.getResult<AAManager>(*F);
+    for (TiledBlock *block : finfo->blocks) {
+      reorderBasicBlockByTiles(block, &AA);
     }
   }
   auto end3 = std::chrono::high_resolution_clock::now(); // Branch Hoisting done
@@ -285,12 +284,12 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   for (Function &F : M) {
     if (verifyFunction(F, &errs())) {
       errs() << "VERIFICATION FAILED for function: " << F.getName() << "\n";
-      // writeFunctionDiff(F, OriginalFunctions[&F]);
+      writeFunctionDiff(F, OriginalFunctions[&F]);
       failed = true;
     }
-    if (strcmp(FUNC_TO_DEBUG, F.getName().str().c_str()) == 0) {
-      writeFunctionDiff(F, OriginalFunctions[&F]);
-    }
+    // if (strcmp(FUNC_TO_DEBUG, F.getName().str().c_str()) == 0) {
+    // writeFunctionDiff(F, OriginalFunctions[&F]); // NOTE: DEBUG ONLY
+    // }
   }
   if (failed) {
     exit(1);
