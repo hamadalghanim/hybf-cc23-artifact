@@ -20,9 +20,12 @@ this is the ir after
    %1017 = load %union.rec*, %union.rec** %opred6636, align 8, !dbg !2017, !tbaa !647
    store %union.rec* %1017, %union.rec** @zz_tmp, align 8, !dbg !2017, !tbaa !645
 ```
+We are storing to `new_par.0` through `store %union.rec* %1016, %union.rec** %opred6644, align 8, !dbg !2017, !tbaa !647` then we load
+we dont know that we store to new_par.0 because it's alaised
+so thje value at `store %union.rec* %new_par.0, %union.rec** @zz_hold, align 8, !dbg !2017, !tbaa !645` loads the new value instead of the old one.
 
 
-```
+```llvm
 Basic Block: 'cond.end6663'
 	Hash: 857349998300259727
 	--------------------
