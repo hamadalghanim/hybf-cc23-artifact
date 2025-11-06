@@ -1,0 +1,10 @@
+Geometric Mean Sizes:
+--------------------------------------------------
+HyBF            76.34
+HyBF-TFG        76.34
+baseline        81.34
+
+Percentage Decrease from Baseline (averaged per-entry):
+--------------------------------------------------
+HyBF            +5.84%
+HyBF-TFG        +5.84%

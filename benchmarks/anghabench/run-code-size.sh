@@ -7,7 +7,7 @@ SIZE=../../install/bin/llvm-size
 
 BRFUSION="-mllvm -enable-brfusion=true -mllvm -run-brfusion-only=true -mllvm -run-cfm-only=false -mllvm -brfusion-dot=false -mllvm -brfusion-soa=false  -mllvm -func-merging-hyfm-nw=false  -mllvm -func-merging-hyfm-pa=true -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false"
 CFMELDER="-mllvm -enable-brfusion=true -mllvm -run-brfusion-only=false -mllvm -run-cfm-only=true -mllvm -brfusion-dot=false -mllvm -brfusion-soa=false  -mllvm -func-merging-hyfm-nw=false  -mllvm -func-merging-hyfm-pa=true -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false"
-HYBF="-mllvm -enable-brfusion=true -mllvm -run-brfusion-only=false -mllvm -run-cfm-only=false -mllvm -brfusion-dot=false -mllvm -brfusion-soa=false  -mllvm -func-merging-hyfm-nw=false  -mllvm -func-merging-hyfm-pa=true -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false"
+HYBF="-mllvm -enable-tfg=false -mllvm -enable-brfusion=true -mllvm -run-brfusion-only=false -mllvm -run-cfm-only=false -mllvm -brfusion-dot=false -mllvm -brfusion-soa=false  -mllvm -func-merging-hyfm-nw=false  -mllvm -func-merging-hyfm-pa=true -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false"
 HYBFTFG="-mllvm -enable-tfg=true -mllvm -enable-brfusion=true -mllvm -run-brfusion-only=false -mllvm -run-cfm-only=false -mllvm -brfusion-dot=false -mllvm -brfusion-soa=false  -mllvm -func-merging-hyfm-nw=false  -mllvm -func-merging-hyfm-pa=true -mllvm -func-merging-debug=true -mllvm -func-merging-verbose=false"
 
 if test -f BenchNames; then
