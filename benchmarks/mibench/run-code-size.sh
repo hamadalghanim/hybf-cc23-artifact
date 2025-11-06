@@ -14,8 +14,8 @@ for BENCH in ${BENCHMARKS}; do
   echo ${BENCH}
   make clean >/dev/null
   /usr/bin/time -f "${BENCH},baseline,%E" sh -c "make BIN=build/baseline 2>../${BENCH}.baseline.txt 1>/dev/null" 2>> ../compilation.csv
-  make clean >/dev/null
-  /usr/bin/time -f "${BENCH},tfg,%E" sh -c "make ENABLE_TFG=true BIN=build/tfg 2>../${BENCH}.tfg.txt 1>/dev/null" 2>> ../compilation.csv
+  # make clean >/dev/null
+  # /usr/bin/time -f "${BENCH},tfg,%E" sh -c "make ENABLE_TFG=true BIN=build/tfg 2>../${BENCH}.tfg.txt 1>/dev/null" 2>> ../compilation.csv
   # make clean >/dev/null
   # /usr/bin/time -f "${BENCH},soa,%E" sh -c "make ENABLE_BRFUSION=true ENABLE_SOA=true BIN=build/soa 2>../${BENCH}.soa.txt 1>/dev/null" 2>> ../compilation.csv
   # make clean >/dev/null
@@ -30,16 +30,16 @@ for BENCH in ${BENCHMARKS}; do
   # /usr/bin/time -f "${BENCH},cfmelder,%E" sh -c "make ENABLE_CFMELDER=true BIN=build/cfmelder 2>../${BENCH}.cfmelder.txt 1>/dev/null" 2>> ../compilation.csv
   # make clean >/dev/null
   # /usr/bin/time -f "${BENCH},tfg-cfmelder,%E" sh -c "make ENABLE_TFG=true ENABLE_CFMELDER=true BIN=build/tfg-cfmelder 2>../${BENCH}.tfg-cfmelder.txt 1>/dev/null" 2>> ../compilation.csv
+  make clean >/dev/null
+  /usr/bin/time -f "${BENCH},cfmelder-brfusion-pa,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/cfmelder-brfusion-pa 2>../${BENCH}.cfmelder-brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
+  make clean >/dev/null
+  /usr/bin/time -f "${BENCH},tfg-cfmelder-brfusion-pa,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_TFG=true ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/tfg-cfmelder-brfusion-pa 2>../${BENCH}.tfg-cfmelder-brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
   # make clean >/dev/null
-  # /usr/bin/time -f "${BENCH},cfmelder-brfusion-pa,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/cfmelder-brfusion-pa 2>../${BENCH}.cfmelder-brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
-  # make clean >/dev/null
-  # /usr/bin/time -f "${BENCH},tfg-cfmelder-brfusion-pa,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_TFG=true ENABLE_BRFUSION=true USE_HYFMPA=true  BIN=build/tfg-cfmelder-brfusion-pa 2>../${BENCH}.tfg-cfmelder-brfusion-pa.txt 1>/dev/null" 2>> ../compilation.csv
-  #make clean >/dev/null
-  #/usr/bin/time -f "${BENCH},cfmelder-brfusion-nw,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_BRFUSION=true USE_HYFMNW=true BIN=build/cfmelder-brfusion-nw 2>../${BENCH}.cfmelder-brfusion-nw.txt 1>/dev/null" 2>> ../compilation.csv
+  # /usr/bin/time -f "${BENCH},cfmelder-brfusion-nw,%E" sh -c "make ENABLE_CFMELDER=true ENABLE_BRFUSION=true USE_HYFMNW=true BIN=build/cfmelder-brfusion-nw 2>../${BENCH}.cfmelder-brfusion-nw.txt 1>/dev/null" 2>> ../compilation.csv
   cd ..
 
   #for VERSION in baseline soa brfusion-pa brfusion-nw cfmelder cfmelder-brfusion-pa cfmelder-brfusion-nw; do
-  for VERSION in baseline tfg; do
+  for VERSION in baseline cfmelder-brfusion-pa tfg-cfmelder-brfusion-pa; do
     python3 results.py ${BENCH} ${LLVM_SIZE} ${VERSION} >> ./results.csv
   done
 done
