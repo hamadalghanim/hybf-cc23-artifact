@@ -20,8 +20,17 @@ fi
 OUTPUTFILE=results.csv
 :>$OUTPUTFILE
 
+FILES_ARRAY=($ALL_FILES)
+TOTAL=${#FILES_ARRAY[@]}
+CURRENT=0
+
+
 for FILE in $ALL_FILES; do
   rm -f baseline.ll cfm.ll seme-fusion.ll hybf.ll hybf-tfg.ll
+
+  ((CURRENT++))
+  
+  printf "\rProcessing %d/%d" "$CURRENT" "$TOTAL"
 
   #echo "BASELINE"
   #$CLANG -Oz -mllvm -enable-brfusion=false $FILE -c -o $FILE.baseline.o 2>/dev/null
