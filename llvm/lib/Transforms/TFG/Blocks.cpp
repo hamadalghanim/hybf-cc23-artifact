@@ -85,6 +85,23 @@ void writeFunctionDiff(const Function &F, const std::string &original) {
     errs() << "Error creating diff file: " << EC.message() << "\n";
   }
 }
+
+bool runTFG(BasicBlock *BB, AAManager &AA) {
+  // Generate the tiled block
+  TiledBlock *tblock = generateTiledBlock(BB);
+  if (!tblock || tblock->tiles.empty()) {
+    return false;
+  }
+
+  // Reorder the basic block
+  reorderBasicBlockByTiles(tblock, &AA);
+
+  // Clean up if needed
+  delete tblock;
+
+  return true;
+}
+
 PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   // TODO: to be removed if debug is not needed
@@ -149,47 +166,48 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   auto end1 =
       std::chrono::high_resolution_clock::now(); // Tagging and building done
 
-  // set hash functions and shingle size
-  for (auto it = functionInfo.begin(); it != functionInfo.end();
-       it++) { // foreach function
-    FunctionInfo *fi = it->second;
-    if (!fi) {
-      errs() << "Warning: Function " << it->first->getName()
-             << " has null FunctionInfo\n";
-      continue;
-    }
+  // // set hash functions and shingle size
+  // for (auto it = functionInfo.begin(); it != functionInfo.end();
+  //      it++) { // foreach function
+  //   FunctionInfo *fi = it->second;
+  //   if (!fi) {
+  //     errs() << "Warning: Function " << it->first->getName()
+  //            << " has null FunctionInfo\n";
+  //     continue;
+  //   }
 
-    std::vector<TiledBlock *> *blocks = &fi->blocks;
+  //   std::vector<TiledBlock *> *blocks = &fi->blocks;
 
-    if (blocks->empty()) {
-      errs() << "Function " << it->first->getName()
-             << "has no blocks, skipping hashing\n";
-      continue;
-    }
+  //   if (blocks->empty()) {
+  //     errs() << "Function " << it->first->getName()
+  //            << "has no blocks, skipping hashing\n";
+  //     continue;
+  //   }
 
-    for (size_t i = 0; i < blocks->size(); i++) { // foreach block
-      TiledBlock *block = blocks->at(i);
+  //   for (size_t i = 0; i < blocks->size(); i++) { // foreach block
+  //     TiledBlock *block = blocks->at(i);
 
-      for (size_t j = 0; j < block->tiles.size(); j++) { // foreach tile
-        Tile *tile = block->tiles[j];
-        if (HashMode == HASH_NORMAL)
-          tile->hash = {minhashShingleInstructions(tile, N_HASHES, N_SHINGLES)};
-        else
-          tile->hash =
-              minhashShingleInstructionsVector(tile, N_HASHES, N_SHINGLES);
-      }
+  //     for (size_t j = 0; j < block->tiles.size(); j++) { // foreach tile
+  //       Tile *tile = block->tiles[j];
+  //       if (HashMode == HASH_NORMAL)
+  //         tile->hash = {minhashShingleInstructions(tile, N_HASHES,
+  //         N_SHINGLES)};
+  //       else
+  //         tile->hash =
+  //             minhashShingleInstructionsVector(tile, N_HASHES, N_SHINGLES);
+  //     }
 
-      if (HashMode == HASH_NORMAL)
-        block->hash = {minhashShingleTiles(block, N_HASHES, N_SHINGLES)};
-      else
-        block->hash = minhashShingleTilesVector(block, N_HASHES, N_SHINGLES);
-    }
+  //     if (HashMode == HASH_NORMAL)
+  //       block->hash = {minhashShingleTiles(block, N_HASHES, N_SHINGLES)};
+  //     else
+  //       block->hash = minhashShingleTilesVector(block, N_HASHES, N_SHINGLES);
+  //   }
 
-    if (HashMode == HASH_NORMAL)
-      fi->hashes = {minhashShingleBlocks(blocks, N_HASHES, N_SHINGLES)};
-    else
-      fi->hashes = minhashShingleBlocksVector(blocks, N_HASHES, N_SHINGLES);
-  }
+  //   if (HashMode == HASH_NORMAL)
+  //     fi->hashes = {minhashShingleBlocks(blocks, N_HASHES, N_SHINGLES)};
+  //   else
+  //     fi->hashes = minhashShingleBlocksVector(blocks, N_HASHES, N_SHINGLES);
+  // }
 
   auto end2 = std::chrono::high_resolution_clock::now(); // Hashing done
 

@@ -213,7 +213,6 @@
 #include "llvm/Transforms/Scalar/StructurizeCFG.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
-#include "llvm/Transforms/TFG/Blocks.h"
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/BreakCriticalEdges.h"
@@ -286,8 +285,7 @@ static cl::opt<bool> EnableO3NonTrivialUnswitching(
 static cl::opt<bool> EnableBranchFusion("enable-brfusion", cl::init(false),
                                         cl::Hidden,
                                         cl::desc("enable brfusion"));
-static cl::opt<bool> EnableTFG("enable-tfg", cl::init(false), cl::Hidden,
-                               cl::desc("enable tfg"));
+
 /*
 static cl::opt<bool> EnableCFMelder(
     "enable-cfmelder", cl::init(false), cl::Hidden,
@@ -1235,9 +1233,6 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
     MPM.addPass(BranchFusionModulePass());
   }
   */
-  if (EnableTFG) {
-    MPM.addPass(BasicBlocksPass());
-  }
   if (EnableBranchFusion) {
     MPM.addPass(HybridBranchFusionModulePass());
   }
