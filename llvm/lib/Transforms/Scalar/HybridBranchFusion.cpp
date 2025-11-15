@@ -138,7 +138,6 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
 
     // Initialize and apply TFG to the TFG clones ONCE at the beginning
     if (EnableTFG) {
-
       BFTFGFunc.Reinitialize();
       runTFGOnFunction(BFTFGFunc.Cloned, AA);
     }
@@ -166,6 +165,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           if (CFMSuccess) {
             CFMProfit = BeforeSize - EstimateFunctionSize(CFMFunc.Cloned, TTI);
             errs() << "CFM code reduction : " << CFMProfit << "\n";
+            CFMFunc.Invalidate();
           }
 
           if (EnableTFG) {
@@ -180,6 +180,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
               CFMTFGProfit =
                   BeforeSize - EstimateFunctionSize(CFMFunc.Cloned, TTI);
               errs() << "TFG+CFM code reduction : " << CFMTFGProfit << "\n";
+              CFMFunc.Invalidate();
             }
           }
         }
@@ -194,6 +195,8 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
               *(BFFunc.Cloned), BFFunc.getClonedBI(BI), BFFunc.DT, TTI, false);
           if (BFSuccess) {
             BFProfit = BeforeSize - EstimateFunctionSize(BFFunc.Cloned, TTI);
+
+            BFFunc.Invalidate();
             errs() << "Branch fusion code reduction : " << BFProfit << "\n";
           }
 
@@ -205,6 +208,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
             if (BFTFGSuccess) {
               BFTFGProfit =
                   BeforeSize - EstimateFunctionSize(BFTFGFunc.Cloned, TTI);
+
               errs() << "TFG+BF code reduction : " << BFTFGProfit << "\n";
             }
           }
