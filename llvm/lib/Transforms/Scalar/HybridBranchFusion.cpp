@@ -119,7 +119,7 @@ public:
   }
 };
 static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
-                    LoopInfo &LI, TargetTransformInfo &TTI, AAManager &AA) {
+                    LoopInfo &LI, TargetTransformInfo &TTI, AAResults &AA) {
   errs() << "Procesing function : " << F->getName() << "\n";
   int CFMCount = 0, BFCount = 0, TFGCount = 0;
   bool LocalChange = false, Changed = false;
@@ -169,7 +169,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
             BasicBlock *ClonedBB = CFMTFGFunc.getClonedBB(BB);
 
             // Run TFG first
-            bool TFGSuccess = runTFG(ClonedBB, AA);
+            bool TFGSuccess = llvm::runTFG(ClonedBB, AA);
             if (TFGSuccess) {
               // Then run CFM on the TFG-optimized code
               SmallVector<unsigned> EmptyIdxs2;
@@ -209,7 +209,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
             BranchInst *ClonedBI = BFTFGFunc.getClonedBI(BI);
 
             // Run TFG first
-            bool TFGSuccess = runTFG(ClonedBB, AA);
+            bool TFGSuccess = llvm::runTFG(ClonedBB, AA);
             if (TFGSuccess) {
               // Then run BF on the TFG-optimized code
               bool BFTFGSuccess = MergeBranchRegions(
@@ -233,7 +233,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           if (MaxProfit == BFTFGProfit && EnableTFG) {
             errs() << "Profitable: TFG+BF " << BB->getName().str() << ": ";
             BI->dump();
-            runTFG(BB, AA);
+            llvm::runTFG(BB, AA);
             MergeBranchRegions(*F, BI, DT, TTI, true);
             TFGCount++;
             BFCount++;
@@ -246,7 +246,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           } else if (MaxProfit == CFMTFGProfit && EnableTFG) {
             errs() << "Profitable: TFG+CFM " << BB->getName().str() << ": ";
             BI->dump();
-            runTFG(BB, AA);
+            llvm::runTFG(BB, AA);
             runCFM(BB, DT, PDT, TTI, ProfitableTFGIdxs);
             TFGCount++;
             CFMCount++;

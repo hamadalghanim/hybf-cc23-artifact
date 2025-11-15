@@ -86,22 +86,6 @@ void writeFunctionDiff(const Function &F, const std::string &original) {
   }
 }
 
-bool runTFG(BasicBlock *BB, AAManager &AA) {
-  // Generate the tiled block
-  TiledBlock *tblock = generateTiledBlock(BB);
-  if (!tblock || tblock->tiles.empty()) {
-    return false;
-  }
-
-  // Reorder the basic block
-  reorderBasicBlockByTiles(tblock, &AA);
-
-  // Clean up if needed
-  delete tblock;
-
-  return true;
-}
-
 PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   // TODO: to be removed if debug is not needed
@@ -317,6 +301,21 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   return PreservedAnalyses::none(); // all()
 };
 
+bool runTFG(BasicBlock *BB, AAResults &AA) {
+  // Generate the tiled block
+  TiledBlock *tblock = generateTiledBlock(BB);
+  if (!tblock || tblock->tiles.empty()) {
+    return false;
+  }
+
+  // Reorder the basic block
+  reorderBasicBlockByTiles(tblock, &AA);
+
+  // Clean up if needed
+  delete tblock;
+
+  return true;
+}
 } // namespace llvm
 
 // extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
