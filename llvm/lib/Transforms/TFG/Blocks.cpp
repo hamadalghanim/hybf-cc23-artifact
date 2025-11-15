@@ -305,6 +305,8 @@ bool runTFG(BasicBlock *BB, AAResults &AA) {
   // Generate the tiled block
   TiledBlock *tblock = generateTiledBlock(BB);
   if (!tblock || tblock->tiles.empty()) {
+    if (tblock)
+      delete tblock;
     return false;
   }
 

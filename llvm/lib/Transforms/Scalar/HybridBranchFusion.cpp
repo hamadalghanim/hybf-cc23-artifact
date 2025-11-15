@@ -226,31 +226,31 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
         }
 
         // Pick the best combination out of all 4 options
-        int MaxProfit =
-            std::max({BFProfit, CFMProfit, BFTFGProfit, CFMTFGProfit});
+        int MinProfit =
+            std::min({BFProfit, CFMProfit, BFTFGProfit, CFMTFGProfit});
 
-        if (MaxProfit > 0) {
-          if (MaxProfit == BFTFGProfit && EnableTFG) {
+        if (MinProfit < 0) {
+          if (MinProfit == BFTFGProfit && EnableTFG) {
             errs() << "Profitable: TFG+BF " << BB->getName().str() << ": ";
             BI->dump();
             llvm::runTFG(BB, AA);
             MergeBranchRegions(*F, BI, DT, TTI, true);
             TFGCount++;
             BFCount++;
-          } else if (MaxProfit == BFProfit) {
+          } else if (MinProfit == BFProfit) {
             errs() << "Profitable Branch Fusion: SEME-brfusion "
                    << BB->getName().str() << ": ";
             BI->dump();
             MergeBranchRegions(*F, BI, DT, TTI, true);
             BFCount++;
-          } else if (MaxProfit == CFMTFGProfit && EnableTFG) {
+          } else if (MinProfit == CFMTFGProfit && EnableTFG) {
             errs() << "Profitable: TFG+CFM " << BB->getName().str() << ": ";
             BI->dump();
             llvm::runTFG(BB, AA);
             runCFM(BB, DT, PDT, TTI, ProfitableTFGIdxs);
             TFGCount++;
             CFMCount++;
-          } else if (MaxProfit == CFMProfit) {
+          } else if (MinProfit == CFMProfit) {
             errs() << "Profitable Branch Fusion: CFMelder "
                    << BB->getName().str() << ": ";
             BI->dump();
