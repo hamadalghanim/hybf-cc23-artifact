@@ -12,6 +12,7 @@ struct BasicBlocksPass : public PassInfoMixin<BasicBlocksPass> {
 };
 
 bool runTFG(BasicBlock *BB, AAResults &AA);
+bool runTFGOnFunction(Function *F, AAResults &AA);
 
 } // namespace llvm
 #endif

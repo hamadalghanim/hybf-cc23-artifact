@@ -318,6 +318,32 @@ bool runTFG(BasicBlock *BB, AAResults &AA) {
 
   return true;
 }
+bool runTFGOnFunction(Function *F, AAResults &AA) {
+  bool Changed = false;
+
+  for (BasicBlock &BB : *F) {
+    if (BB.empty())
+      continue;
+
+    // Generate tiled block
+    TiledBlock *tblock = generateTiledBlock(&BB);
+    if (!tblock || tblock->tiles.empty()) {
+      if (tblock)
+        delete tblock;
+      continue;
+    }
+
+    // Reorder the basic block
+    reorderBasicBlockByTiles(tblock, &AA);
+
+    // Clean up
+    delete tblock;
+    Changed = true;
+  }
+
+  return Changed;
+}
+
 } // namespace llvm
 
 // extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo

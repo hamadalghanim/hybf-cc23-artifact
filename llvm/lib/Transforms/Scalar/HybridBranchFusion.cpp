@@ -131,10 +131,17 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
   do {
     LocalChange = false;
     int BeforeSize = EstimateFunctionSize(F, TTI);
+
     ClonedFunctionInfo CFMFunc(F, true);
     ClonedFunctionInfo BFFunc(F, false);
-    ClonedFunctionInfo CFMTFGFunc(F, true); // CFM with TFG
-    ClonedFunctionInfo BFTFGFunc(F, false); // BF with TFG
+    ClonedFunctionInfo BFTFGFunc(F, false);
+
+    // Initialize and apply TFG to the TFG clones ONCE at the beginning
+    if (EnableTFG) {
+
+      BFTFGFunc.Reinitialize();
+      runTFGOnFunction(BFTFGFunc.Cloned, AA);
+    }
 
     for (BasicBlock *BB : post_order(&F->getEntryBlock())) {
       if (VisitedBBs.count(BB))
@@ -156,33 +163,23 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           ProfitableIdxs = runCFM(CFMFunc.getClonedBB(BB), CFMFunc.DT,
                                   CFMFunc.PDT, TTI, EmptyIdxs);
           bool CFMSuccess = ProfitableIdxs.size() > 0;
-          CFMProfit = CFMSuccess ? BeforeSize -
-                                       EstimateFunctionSize(CFMFunc.Cloned, TTI)
-                                 : 0;
-          errs() << "CFM code reduction : " << CFMProfit << "\n";
-          if (CFMSuccess)
-            CFMFunc.Invalidate();
+          if (CFMSuccess) {
+            CFMProfit = BeforeSize - EstimateFunctionSize(CFMFunc.Cloned, TTI);
+            errs() << "CFM code reduction : " << CFMProfit << "\n";
+          }
 
-          // 2. TFG + CFM (if TFG enabled)
           if (EnableTFG) {
-            CFMTFGFunc.Reinitialize();
-            BasicBlock *ClonedBB = CFMTFGFunc.getClonedBB(BB);
-
-            // Run TFG first
-            bool TFGSuccess = llvm::runTFG(ClonedBB, AA);
-            if (TFGSuccess) {
-              // Then run CFM on the TFG-optimized code
-              SmallVector<unsigned> EmptyIdxs2;
-              ProfitableTFGIdxs = runCFM(ClonedBB, CFMTFGFunc.DT,
-                                         CFMTFGFunc.PDT, TTI, EmptyIdxs2);
-              bool CFMTFGSuccess = ProfitableTFGIdxs.size() > 0;
-              CFMTFGProfit = CFMTFGSuccess
-                                 ? BeforeSize - EstimateFunctionSize(
-                                                    CFMTFGFunc.Cloned, TTI)
-                                 : 0;
+            CFMFunc.Reinitialize();
+            BasicBlock *ClonedBB = CFMFunc.getClonedBB(BB);
+            runTFG(ClonedBB, AA);
+            SmallVector<unsigned> EmptyIdxs2;
+            ProfitableTFGIdxs =
+                runCFM(ClonedBB, CFMFunc.DT, CFMFunc.PDT, TTI, EmptyIdxs2);
+            bool CFMTFGSuccess = ProfitableTFGIdxs.size() > 0;
+            if (CFMTFGSuccess) {
+              CFMTFGProfit =
+                  BeforeSize - EstimateFunctionSize(CFMFunc.Cloned, TTI);
               errs() << "TFG+CFM code reduction : " << CFMTFGProfit << "\n";
-              if (CFMTFGSuccess)
-                CFMTFGFunc.Invalidate();
             }
           }
         }
@@ -195,32 +192,20 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           BFFunc.Reinitialize();
           bool BFSuccess = MergeBranchRegions(
               *(BFFunc.Cloned), BFFunc.getClonedBI(BI), BFFunc.DT, TTI, false);
-          BFProfit = BFSuccess
-                         ? BeforeSize - EstimateFunctionSize(BFFunc.Cloned, TTI)
-                         : 0;
-          errs() << "Branch fusion code reduction : " << BFProfit << "\n";
-          if (BFSuccess)
-            BFFunc.Invalidate();
+          if (BFSuccess) {
+            BFProfit = BeforeSize - EstimateFunctionSize(BFFunc.Cloned, TTI);
+            errs() << "Branch fusion code reduction : " << BFProfit << "\n";
+          }
 
-          // 4. TFG + BF (if TFG enabled)
+          // 4. TFG + BF (TFG already applied to BFTFGFunc at the beginning)
           if (EnableTFG) {
-            BFTFGFunc.Reinitialize();
-            BasicBlock *ClonedBB = BFTFGFunc.getClonedBB(BB);
             BranchInst *ClonedBI = BFTFGFunc.getClonedBI(BI);
-
-            // Run TFG first
-            bool TFGSuccess = llvm::runTFG(ClonedBB, AA);
-            if (TFGSuccess) {
-              // Then run BF on the TFG-optimized code
-              bool BFTFGSuccess = MergeBranchRegions(
-                  *(BFTFGFunc.Cloned), ClonedBI, BFTFGFunc.DT, TTI, false);
+            bool BFTFGSuccess = MergeBranchRegions(
+                *(BFTFGFunc.Cloned), ClonedBI, BFTFGFunc.DT, TTI, false);
+            if (BFTFGSuccess) {
               BFTFGProfit =
-                  BFTFGSuccess
-                      ? BeforeSize - EstimateFunctionSize(BFTFGFunc.Cloned, TTI)
-                      : 0;
+                  BeforeSize - EstimateFunctionSize(BFTFGFunc.Cloned, TTI);
               errs() << "TFG+BF code reduction : " << BFTFGProfit << "\n";
-              if (BFTFGSuccess)
-                BFTFGFunc.Invalidate();
             }
           }
         }
@@ -233,7 +218,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           if (MaxProfit == BFTFGProfit && EnableTFG) {
             errs() << "Profitable: TFG+BF " << BB->getName().str() << ": ";
             BI->dump();
-            llvm::runTFG(BB, AA);
+            runTFGOnFunction(F, AA); // Apply TFG to original function
             MergeBranchRegions(*F, BI, DT, TTI, true);
             TFGCount++;
             BFCount++;
@@ -246,7 +231,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           } else if (MaxProfit == CFMTFGProfit && EnableTFG) {
             errs() << "Profitable: TFG+CFM " << BB->getName().str() << ": ";
             BI->dump();
-            runTFGOnFunction(F, AA); // Run on entire function
+            runTFG(BB, AA);
             runCFM(BB, DT, PDT, TTI, ProfitableTFGIdxs);
             TFGCount++;
             CFMCount++;
@@ -276,7 +261,7 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
            << OrigCodeSize << " to  " << FinalCodeSize << " ("
            << PercentReduction << "%)"
            << "\n";
-    errs() << "Brach fusion applied " << BFCount << " times, CFM applied "
+    errs() << "Branch fusion applied " << BFCount << " times, CFM applied "
            << CFMCount << " times, and TFG applied " << TFGCount << " times\n";
   }
 
