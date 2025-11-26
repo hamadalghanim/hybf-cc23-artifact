@@ -6,15 +6,22 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/PostDominators.h"
+
 #include "llvm/IR/Dominators.h"
+
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
+
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Config/llvm-config.h"
 
 #include "MinHash.h"
 #include "TileReorder.h"
 #include "Tiles.h"
 #include "globals.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Verifier.h"
 
 #include <chrono>
 #include <filesystem>
@@ -22,17 +29,10 @@
 #include <vector>
 
 using namespace llvm;
-static cl::opt<MyHashMode>
-    HashMode("tilehash", cl::desc("Choose the hashing method for your pass"),
-             cl::values(clEnumValN(HASH_NORMAL, "normal",
-                                   "Normal non-vectorized hashing function"),
-                        clEnumValN(HASH_VECTOR, "vector",
-                                   "Vectorized hashing function")),
-             cl::init(HASH_NORMAL));
+
 namespace llvm {
 // Define the command line option with enum values
 
-auto const FUNC_TO_DEBUG = "Parse";
 void printTiles(const std::map<Function *, FunctionInfo *> &info) {
   for (const auto &[F, finfo] : info) {
     if (!finfo || finfo->blocks.empty())
@@ -90,7 +90,6 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   // TODO: to be removed if debug is not needed
   std::map<Function *, std::string> OriginalFunctions;
-  hashmode = HashMode;
   std::map<Function *, FunctionInfo *> functionInfo;
   size_t inst_cnt = 0;
   std::vector<PostDominatorTree *> trees;
@@ -116,138 +115,127 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
 
     for (BasicBlock &B : F) {
       if (B.empty()) {
-        errs() << "Basic block is empty, skipping\n";
+        // errs() << "Basic block is empty, skipping\n";
         continue;
       }
 
       TiledBlock *tblock = generateTiledBlock(&B);
       if (tblock == nullptr) {
-        errs() << "generateTiledBlock returned null for block " << B.getName()
-               << "\n";
+        // errs() << "generateTiledBlock returned null for block " <<
+        // B.getName() << "\n";
         return PreservedAnalyses::all();
       }
 
       if (tblock->tiles.empty()) {
-        errs() << "Warning: TiledBlock has no tiles\n";
+        // errs() << "Warning: TiledBlock has no tiles\n";
         fi->blocks.push_back(tblock);
         continue;
       }
 
       for (size_t i = 0; i < tblock->tiles.size(); i++) { // counting
         if (tblock->tiles[i] == nullptr) {
-          errs() << "Warning: Tile " << i << " is null\n";
+          // errs() << "Warning: Tile " << i << " is null\n";
           continue;
         }
         inst_cnt += tblock->tiles[i]->insts.size();
       }
       fi->blocks.push_back(tblock);
     }
-    fi->PDT = &FAM.getResult<PostDominatorTreeAnalysis>(F);
-    fi->DT = &FAM.getResult<DominatorTreeAnalysis>(F); // Dominator tree
+    // fi->PDT = &FAM.getResult<PostDominatorTreeAnalysis>(F);
+    // fi->DT = &FAM.getResult<DominatorTreeAnalysis>(F); // Dominator tree
     functionInfo[&F] = fi;
   }
 
   auto end1 =
       std::chrono::high_resolution_clock::now(); // Tagging and building done
 
-  // // set hash functions and shingle size
-  // for (auto it = functionInfo.begin(); it != functionInfo.end();
-  //      it++) { // foreach function
-  //   FunctionInfo *fi = it->second;
-  //   if (!fi) {
-  //     errs() << "Warning: Function " << it->first->getName()
-  //            << " has null FunctionInfo\n";
-  //     continue;
-  //   }
-
-  //   std::vector<TiledBlock *> *blocks = &fi->blocks;
-
-  //   if (blocks->empty()) {
-  //     errs() << "Function " << it->first->getName()
-  //            << "has no blocks, skipping hashing\n";
-  //     continue;
-  //   }
-
-  //   for (size_t i = 0; i < blocks->size(); i++) { // foreach block
-  //     TiledBlock *block = blocks->at(i);
-
-  //     for (size_t j = 0; j < block->tiles.size(); j++) { // foreach tile
-  //       Tile *tile = block->tiles[j];
-  //       if (HashMode == HASH_NORMAL)
-  //         tile->hash = {minhashShingleInstructions(tile, N_HASHES,
-  //         N_SHINGLES)};
-  //       else
-  //         tile->hash =
-  //             minhashShingleInstructionsVector(tile, N_HASHES, N_SHINGLES);
-  //     }
-
-  //     if (HashMode == HASH_NORMAL)
-  //       block->hash = {minhashShingleTiles(block, N_HASHES, N_SHINGLES)};
-  //     else
-  //       block->hash = minhashShingleTilesVector(block, N_HASHES, N_SHINGLES);
-  //   }
-
-  //   if (HashMode == HASH_NORMAL)
-  //     fi->hashes = {minhashShingleBlocks(blocks, N_HASHES, N_SHINGLES)};
-  //   else
-  //     fi->hashes = minhashShingleBlocksVector(blocks, N_HASHES, N_SHINGLES);
-  // }
-
+  std::map<Function *, size_t> functionInstructionsMoved;
+  std::map<Function *, size_t> functionInstructionsTotalMoved;
+  std::map<Function *, size_t> functionBlocksWithMoves;
   auto end2 = std::chrono::high_resolution_clock::now(); // Hashing done
-
-  /*errs() << "Function Similarity Check: \n";
-    int bit_compare = 4; //bits to compare between
-    int band_count = (sizeof(size_t) * 8) / bit_compare;
-    for (Function &F: M.functions()) {
-    if (functionHashes.count(&F) <= 0) continue; //skip unavailable
-
-    for (Function &F2: M.functions()) {
-    if (functionHashes.count(&F2) <= 0) continue; //skip unavailable
-    if (&F == &F2) continue; //skip same
-
-    int distance = LSH_distance(functionHashes[&F], functionHashes[&F2],
-    band_count); errs() << F.getName() << " vs " << F2.getName() << ": " <<
-    distance << " / " << band_count << "\n"; if (distance == 0) errs() <<
-    "found functions that should be merged\n";
-    }
-    }*/
-
-  // errs() << "\n";
-  // printTiles(functionInfo, functionHashes);
-  // errs() << "\n\t\t\t Printed successfully, returning now\n";
-
-  // NOTE: we dont fuse now
-  // int fuse_run = 1;
-  // bool fuse = FuseBranches(functionInfo);
-  // int fuse_cnt = (int)fuse;
-  // while (fuse)
-  // { // fixed point alg
-  // 	fuse = FuseBranches(functionInfo);
-  // 	if (fuse)
-  // 		fuse_cnt++;
-  // 	fuse_run++;
-  // }
-
-  // printTiles(functionInfo);
 
   for (const auto &[F, finfo] : functionInfo) {
     AAResults &AA = FAM.getResult<AAManager>(*F);
+    size_t functionMoveCount = 0;
+    size_t functionTotalMoveCount = 0;
+
     for (TiledBlock *block : finfo->blocks) {
-      reorderBasicBlockByTiles(block, &AA);
+      BasicBlock *bb = block->basedOn;
+
+      // Store original instruction order
+      std::vector<Instruction *> originalOrder;
+      for (Instruction &I : *bb)
+        originalOrder.push_back(&I);
+
+      functionMoveCount += reorderBasicBlockByTiles(block, &AA);
+
+      size_t totalMovedCount = 0;
+      std::set<Instruction *> seenInCorrectPosition;
+
+      for (size_t i = 0; i < originalOrder.size(); i++) {
+        Instruction *current = nullptr;
+        size_t currentIdx = 0;
+        for (Instruction &I : *bb) {
+          if (currentIdx == i) {
+            current = &I;
+            break;
+          }
+          currentIdx++;
+        }
+
+        if (current != originalOrder[i])
+          totalMovedCount++;
+      }
+      functionTotalMoveCount += totalMovedCount;
+      if (totalMovedCount)
+        functionBlocksWithMoves[F]++;
     }
+    functionInstructionsMoved[F] = functionMoveCount;
+    functionInstructionsTotalMoved[F] = functionTotalMoveCount;
+  }
+
+  // Write to CSV file
+  std::error_code EC;
+  std::string moduleName = M.getName().str();
+  if (moduleName.empty())
+    moduleName = "module";
+  // Sanitize moduleName to replace slashes with underscores
+  std::string sanitizedName = moduleName;
+  std::replace(sanitizedName.begin(), sanitizedName.end(), '/', '_');
+
+  std::string filePath = "output/instruction_moves_" + sanitizedName + ".csv";
+
+  // Create the output directory
+  std::filesystem::create_directories("output", EC);
+  if (EC) {
+    errs() << "Error creating output directory: " << EC.message() << "\n";
+  }
+
+  raw_fd_ostream csvFile(filePath, EC);
+  if (!EC) {
+    // Header
+    csvFile << "Module Name,Function Name,Total Instructions,Block "
+               "Count,Instructions Moved,Total Instructions Relocated,Blocks "
+               "Moved\n";
+
+    for (const auto &[F, count] : functionInstructionsMoved) {
+      size_t blockCount = functionInfo[F]->blocks.size();
+      size_t totalMoved = functionInstructionsTotalMoved[F];
+      size_t blocksWithMovements = functionBlocksWithMoves[F];
+
+      csvFile << moduleName << "," << F->getName() << ","
+              << F->getInstructionCount() << "," << blockCount << "," << count
+              << "," << totalMoved << "," << blocksWithMovements << "\n";
+    }
+
+    csvFile.close();
+    errs() << "Results written to " << filePath << "\n";
+  } else {
+    errs() << "Error writing CSV file: " << EC.message() << " (" << filePath
+           << ")\n";
   }
   auto end3 = std::chrono::high_resolution_clock::now(); // Branch Hoisting done
-  /*for (Function &f: M.functions()) {
-    for (BasicBlock &B : f) {
-    errs() << "Basic Block: " << B.getName() << "\n";
-    for (Instruction &I : B) {
-    I.print(errs());
-    errs() << "\n";
-    }
-    }
-    } */
-  // printTiles(functionInfo, functionHashes);
-  errs() << "Processed " << inst_cnt << " instructions\n";
+  errs() << "TFG: Processed " << inst_cnt << " instructions\n";
   if (inst_cnt != 0) {
     // errs() << "\tFused " << fuse_cnt << " time(s) out of " << fuse_run << "
     // runs\n";
@@ -257,25 +245,25 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
     auto build_time =
         std::chrono::duration_cast<std::chrono::microseconds>(end1 - start)
             .count();
-    errs() << "Building time:\t\t" << build_time << "us\t\t"
+    errs() << "TFG: Building time:\t\t" << build_time << "us\t\t"
            << (build_time / inst_cnt) << "us/inst\n";
 
     auto hash_time =
         std::chrono::duration_cast<std::chrono::microseconds>(end2 - end1)
             .count();
-    errs() << "Hashing time:\t\t" << hash_time << "us\t\t"
+    errs() << "TFG: Hashing time:\t\t" << hash_time << "us\t\t"
            << (hash_time / inst_cnt) << "us/inst\n";
 
     auto csr_time =
         std::chrono::duration_cast<std::chrono::microseconds>(end3 - end2)
             .count();
-    errs() << "Reduce time:\t\t" << csr_time << "us\t\t"
+    errs() << "TFG: Reorder time:\t\t" << csr_time << "us\t\t"
            << (csr_time / inst_cnt) << "us/inst\n";
 
     auto total_time =
         std::chrono::duration_cast<std::chrono::microseconds>(end3 - start)
             .count();
-    errs() << "Total Time:\t\t" << total_time << "us\t\t"
+    errs() << "TFG: Total Time:\t\t" << total_time << "us\t\t"
            << (total_time / inst_cnt) << "us/inst\n";
     errs() << "\n";
   }

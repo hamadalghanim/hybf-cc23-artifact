@@ -89,10 +89,10 @@ canSafelyReorderTiles(const std::vector<Instruction *> &tile1,
 
 // Reorder instructions in a basic block to group tiles together
 // while preserving control flow instruction positions and memory dependencies
-void reorderBasicBlockByTiles(TiledBlock *block, AAResults *AA) {
+int reorderBasicBlockByTiles(TiledBlock *block, AAResults *AA) {
   if (!block || block->tiles.empty()) {
     errs() << "Basic Block has empty tiles\n";
-    return;
+    return 0;
   }
 
   BasicBlock *BB = block->basedOn;
@@ -271,10 +271,25 @@ void reorderBasicBlockByTiles(TiledBlock *block, AAResults *AA) {
 
   // Count how many instructions will actually be reordered
   int reorderedCount = 0;
+  std::map<Instruction *, size_t> posMap;
+  for (size_t i = 0; i < originalOrder.size(); i++) {
+    posMap[originalOrder[i]] = i;
+  }
+
   for (size_t i = 0; i < newOrder.size(); i++) {
-    if (i < originalOrder.size() && newOrder[i] != originalOrder[i]) {
-      reorderedCount++;
+    size_t origPos = posMap[newOrder[i]];
+    bool moved = false;
+
+    // Check if any instruction after this one originally came before it
+    for (size_t j = i + 1; j < newOrder.size(); j++) {
+      if (posMap[newOrder[j]] < origPos) {
+        moved = true;
+        break;
+      }
     }
+
+    if (moved)
+      reorderedCount++;
   }
   if (reorderedCount > 0) {
     errs() << "Reordering " << reorderedCount << " out of " << BB->size()
@@ -286,7 +301,7 @@ void reorderBasicBlockByTiles(TiledBlock *block, AAResults *AA) {
     errs() << "Warning: instruction count mismatch during reordering\n";
     errs() << "  Expected: " << BB->size() << ", Got: " << newOrder.size()
            << "\n";
-    return;
+    return 0;
   }
 
   // Remove all instructions from the basic block
@@ -302,4 +317,5 @@ void reorderBasicBlockByTiles(TiledBlock *block, AAResults *AA) {
   for (Instruction *I : newOrder) {
     BB->getInstList().push_back(I);
   }
+  return reorderedCount;
 }

@@ -9,5 +9,5 @@
 #include <optional>
 #include <set>
 #include <vector>
-void reorderBasicBlockByTiles(llvm::TiledBlock *block, llvm::AAResults *AA);
+int reorderBasicBlockByTiles(llvm::TiledBlock *block, llvm::AAResults *AA);
 #endif
