@@ -28,6 +28,8 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "hybrid-brfusion"
@@ -43,6 +45,11 @@ static cl::opt<bool> EnableTFG("enable-tfg", cl::init(false), cl::Hidden,
 
 namespace {
 
+struct ProfitInformation {
+  Function *F;
+  std::string technique;
+  int profit;
+};
 class HybridBranchFusionLegacyPass : public ModulePass {
 
 public:
@@ -119,7 +126,8 @@ public:
   }
 };
 static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
-                    LoopInfo &LI, TargetTransformInfo &TTI, AAResults &AA) {
+                    LoopInfo &LI, TargetTransformInfo &TTI, AAResults &AA,
+                    std::vector<ProfitInformation> profits) {
   errs() << "Procesing function : " << F->getName() << "\n";
   int CFMCount = 0, BFCount = 0, TFGCount = 0;
   bool LocalChange = false, Changed = false;
@@ -214,6 +222,10 @@ static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
           }
         }
 
+        profits.push_back(ProfitInformation{F, "BFProfit", BFProfit});
+        profits.push_back(ProfitInformation{F, "CFMProfit", CFMProfit});
+        profits.push_back(ProfitInformation{F, "BFTFGProfit", BFTFGProfit});
+        profits.push_back(ProfitInformation{F, "CFMTFGProfit", CFMTFGProfit});
         // Pick the best combination out of all 4 options
         int MaxProfit =
             std::max({BFProfit, CFMProfit, BFTFGProfit, CFMTFGProfit});
@@ -284,6 +296,47 @@ void HybridBranchFusionLegacyPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<LoopInfoWrapperPass>();
 }
 
+void outputCSVFile(Module &M, std::vector<ProfitInformation> profits) {
+  // Write to CSV file
+  std::error_code EC;
+  std::string moduleName = M.getName().str();
+  if (moduleName.empty())
+    moduleName = "module";
+  // Sanitize moduleName to replace slashes with underscores
+  std::string sanitizedName = moduleName;
+  std::replace(sanitizedName.begin(), sanitizedName.end(), '/', '_');
+
+  if (EnableTFG) {
+    sanitizedName = "TFG_" + sanitizedName;
+  }
+
+  std::string filePath = "output/HyBF_" + sanitizedName + ".csv";
+
+  // Create the output directory
+  EC = llvm::sys::fs::create_directories("output");
+  if (EC) {
+    llvm::errs() << "Failed to create directory: " << EC.message() << "\n";
+    return;
+  }
+
+  raw_fd_ostream csvFile(filePath, EC);
+  if (!EC) {
+    // Header
+    csvFile << "Module Name,Function Name,Technique Name,Profit";
+
+    for (const auto &prof : profits) {
+      csvFile << moduleName << "," << prof.F->getName() << "," << prof.technique
+              << "," << prof.profit << "\n";
+    }
+
+    csvFile.close();
+    errs() << "Results written to " << filePath << "\n";
+  } else {
+    errs() << "Error writing CSV file: " << EC.message() << " (" << filePath
+           << ")\n";
+  }
+}
+
 PreservedAnalyses
 HybridBranchFusionModulePass::run(Module &M, ModuleAnalysisManager &MAM) {
   auto &FAM = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
@@ -295,15 +348,16 @@ HybridBranchFusionModulePass::run(Module &M, ModuleAnalysisManager &MAM) {
       continue;
     Funcs.push_back(&F);
   }
-
+  std::vector<ProfitInformation> profits;
   for (Function *F : Funcs) {
     auto &DT = FAM.getResult<DominatorTreeAnalysis>(*F);
     auto &PDT = FAM.getResult<PostDominatorTreeAnalysis>(*F);
     auto &TTI = FAM.getResult<TargetIRAnalysis>(*F);
     auto &LI = FAM.getResult<LoopAnalysis>(*F);
     auto &AA = FAM.getResult<AAManager>(*F);
-    Changed |= runImpl(F, DT, PDT, LI, TTI, AA);
+    Changed |= runImpl(F, DT, PDT, LI, TTI, AA, profits);
   }
+  outputCSVFile(M, profits);
   if (!Changed)
     return PreservedAnalyses::all();
   PreservedAnalyses PA;
