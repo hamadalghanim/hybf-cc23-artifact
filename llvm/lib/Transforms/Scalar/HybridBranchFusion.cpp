@@ -40,8 +40,8 @@ static cl::opt<bool> RunCFMOnly("run-cfm-only", cl::init(false), cl::Hidden,
 static cl::opt<bool> RunBFOnly("run-brfusion-only", cl::init(false), cl::Hidden,
                                cl::desc("Only run branch fusion"));
 
-static cl::opt<bool> EnableTFG("enable-tfg", cl::init(false), cl::Hidden,
-                               cl::desc("enable tfg"));
+static cl::opt<bool> EnableTFG("enable-inner-tfg", cl::init(false), cl::Hidden,
+                               cl::desc("enable inner tfg"));
 
 namespace {
 
