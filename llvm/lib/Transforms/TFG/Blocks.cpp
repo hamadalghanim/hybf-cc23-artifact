@@ -193,46 +193,47 @@ PreservedAnalyses BasicBlocksPass::run(Module &M, AnalysisManager<Module> &AM) {
     functionInstructionsMoved[F] = functionMoveCount;
     functionInstructionsTotalMoved[F] = functionTotalMoveCount;
   }
+  if (!functionInstructionsMoved.empty()) {
+    // Write to CSV file
+    std::error_code EC;
+    std::string moduleName = M.getName().str();
+    if (moduleName.empty())
+      moduleName = "module";
+    // Sanitize moduleName to replace slashes with underscores
+    std::string sanitizedName = moduleName;
+    std::replace(sanitizedName.begin(), sanitizedName.end(), '/', '_');
 
-  // Write to CSV file
-  std::error_code EC;
-  std::string moduleName = M.getName().str();
-  if (moduleName.empty())
-    moduleName = "module";
-  // Sanitize moduleName to replace slashes with underscores
-  std::string sanitizedName = moduleName;
-  std::replace(sanitizedName.begin(), sanitizedName.end(), '/', '_');
+    std::string filePath = "output/instruction_moves_" + sanitizedName + ".csv";
 
-  std::string filePath = "output/instruction_moves_" + sanitizedName + ".csv";
-
-  // Create the output directory
-  std::filesystem::create_directories("output", EC);
-  if (EC) {
-    errs() << "Error creating output directory: " << EC.message() << "\n";
-  }
-
-  raw_fd_ostream csvFile(filePath, EC);
-  if (!EC) {
-    // Header
-    csvFile << "Module Name,Function Name,Total Instructions,Block "
-               "Count,Instructions Moved,Total Instructions Relocated,Blocks "
-               "Moved\n";
-
-    for (const auto &[F, count] : functionInstructionsMoved) {
-      size_t blockCount = functionInfo[F]->blocks.size();
-      size_t totalMoved = functionInstructionsTotalMoved[F];
-      size_t blocksWithMovements = functionBlocksWithMoves[F];
-
-      csvFile << moduleName << "," << F->getName() << ","
-              << F->getInstructionCount() << "," << blockCount << "," << count
-              << "," << totalMoved << "," << blocksWithMovements << "\n";
+    // Create the output directory
+    std::filesystem::create_directories("output", EC);
+    if (EC) {
+      errs() << "Error creating output directory: " << EC.message() << "\n";
     }
 
-    csvFile.close();
-    errs() << "Results written to " << filePath << "\n";
-  } else {
-    errs() << "Error writing CSV file: " << EC.message() << " (" << filePath
-           << ")\n";
+    raw_fd_ostream csvFile(filePath, EC);
+    if (!EC) {
+      // Header
+      csvFile << "Module Name,Function Name,Total Instructions,Block "
+                 "Count,Instructions Moved,Total Instructions Relocated,Blocks "
+                 "Moved\n";
+
+      for (const auto &[F, count] : functionInstructionsMoved) {
+        size_t blockCount = functionInfo[F]->blocks.size();
+        size_t totalMoved = functionInstructionsTotalMoved[F];
+        size_t blocksWithMovements = functionBlocksWithMoves[F];
+
+        csvFile << moduleName << "," << F->getName() << ","
+                << F->getInstructionCount() << "," << blockCount << "," << count
+                << "," << totalMoved << "," << blocksWithMovements << "\n";
+      }
+
+      csvFile.close();
+      errs() << "Results written to " << filePath << "\n";
+    } else {
+      errs() << "Error writing CSV file: " << EC.message() << " (" << filePath
+             << ")\n";
+    }
   }
   auto end3 = std::chrono::high_resolution_clock::now(); // Branch Hoisting done
   errs() << "TFG: Processed " << inst_cnt << " instructions\n";

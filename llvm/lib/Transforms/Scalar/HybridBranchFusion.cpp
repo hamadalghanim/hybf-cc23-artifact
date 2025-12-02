@@ -127,7 +127,7 @@ public:
 };
 static bool runImpl(Function *F, DominatorTree &DT, PostDominatorTree &PDT,
                     LoopInfo &LI, TargetTransformInfo &TTI, AAResults &AA,
-                    std::vector<ProfitInformation> profits) {
+                    std::vector<ProfitInformation> &profits) {
   errs() << "Procesing function : " << F->getName() << "\n";
   int CFMCount = 0, BFCount = 0, TFGCount = 0;
   bool LocalChange = false, Changed = false;
@@ -297,6 +297,9 @@ void HybridBranchFusionLegacyPass::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 void outputCSVFile(Module &M, std::vector<ProfitInformation> profits) {
+  if (profits.empty()) {
+    return;
+  }
   // Write to CSV file
   std::error_code EC;
   std::string moduleName = M.getName().str();

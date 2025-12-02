@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     liblapack-dev \
     gfortran \
+    libsdl2-dev \
     time \
     gdb \
     && rm -rf /var/lib/apt/lists/*
@@ -49,13 +50,14 @@ RUN echo "set auto-load safe-path /" > /root/.gdbinit
 # # Run the installation and build scripts
 # # Need to source the cmake installation and run subsequent commands in the same RUN layer
 # # to preserve the PATH environment variable
-# RUN scripts/install-cmake.sh && \
-#     export PATH=$(realpath cmake-3.21.4-linux-x86_64/bin):$PATH && \
-#     bash scripts/run-cmake.sh && \
-#     bash scripts/build-install.sh
 
-# # Permanently add cmake to PATH for runtime
-# ENV PATH="/app/cmake-3.21.4-linux-x86_64/bin:${PATH}"
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-x86_64.tar.gz && \
+    tar xf cmake-3.31.9-linux-x86_64.tar.gz && \
+    rm -f cmake-3.31.9-linux-x86_64.tar.gz && \
+    mv cmake-3.31.9-linux-x86_64 /opt/cmake
+
+# Add CMake to PATH
+ENV PATH="/opt/cmake/bin:${PATH}"
 
 # Set the default command (you may want to adjust this based on what the built application does)
 CMD ["/bin/bash"]
